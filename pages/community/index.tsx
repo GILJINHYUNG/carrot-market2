@@ -3,7 +3,6 @@ import FloatingButton from "@components/floating-button";
 import Layout from "@components/layout";
 import useSWR from "swr";
 import { Post, User } from "@prisma/client";
-import useCoords from "@libs/client/useCoords";
 import client from "@libs/server/client";
 import { NextPage } from "next";
 
