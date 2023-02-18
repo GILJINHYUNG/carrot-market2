@@ -1,12 +1,13 @@
+import type { NextPage } from "next";
 import Button from "@components/button";
 import Layout from "@components/layout";
 import TextArea from "@components/textarea";
-import useCoords from "@libs/client/useCoords";
+import { useForm } from "react-hook-form";
 import useMutation from "@libs/client/useMutation";
+import { useEffect } from "react";
 import { Post } from "@prisma/client";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import useCoords from "@libs/client/useCoords";
 
 interface WriteForm {
 	question: string;
@@ -17,7 +18,7 @@ interface WriteResponse {
 	post: Post;
 }
 
-export default function Write() {
+const Write: NextPage = () => {
 	const { latitude, longitude } = useCoords();
 	const router = useRouter();
 	const { register, handleSubmit } = useForm<WriteForm>();
@@ -39,8 +40,10 @@ export default function Write() {
 					required
 					placeholder="Ask a question!"
 				/>
-				<Button text={loading ? "Loading" : "Submit"} />
+				<Button text={loading ? "Loading..." : "Submit"} />
 			</form>
 		</Layout>
 	);
-}
+};
+
+export default Write;
