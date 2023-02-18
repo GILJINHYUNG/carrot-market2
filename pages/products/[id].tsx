@@ -1,38 +1,70 @@
 import Button from "@components/button";
 import Layout from "@components/layout";
+import useMutation from "@libs/client/useMutation";
+import { cls } from "@libs/client/utils";
 import { Product, User } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
+import useUser from "@libs/client/useUser";
+import Image from "next/legacy/image";
+import { GetStaticPaths, GetStaticProps, NextPage } from "next";
+import client from "@libs/server/client";
 
 interface ProductWithUser extends Product {
 	user: User;
 }
 
 interface ItemDetailResponse {
-	ok: boolean;
+	// ok: boolean;
 	product: ProductWithUser;
 	relatedProducts: Product[];
+	isLiked: boolean;
 }
 
-export default function ItemDetail() {
+const ItemDetail: NextPage<ItemDetailResponse> = ({
+	product,
+	relatedProducts,
+	isLiked,
+}) => {
+	const { user, isLoading } = useUser();
 	const router = useRouter();
-	const { data } = useSWR<ItemDetailResponse>(
+	const { mutate } = useSWRConfig();
+	const { data, mutate: boundMutate } = useSWR<ItemDetailResponse>(
 		router.query.id ? `/api/products/${router.query.id}` : null
 	);
-	console.log(data);
+	const [toggleFav] = useMutation(`/api/products/${router.query.id}/fav`);
+	const onFavClick = () => {
+		if (!data) return;
+		boundMutate((prev) => prev && { ...prev, isLiked: !data.isLiked }, false);
+		// mutate("/api/users/me", (prev: any) => ({ ok: !prev.ok }), false);
+		toggleFav({});
+	};
 	return (
-		<Layout canGoBack>
+		<Layout canGoBack seoTitle="Product Detail">
 			<div className="px-4  py-4">
 				<div className="mb-8">
-					<div className="h-96 bg-slate-300" />
+					<img
+						alt="profile_image"
+						src={`https://imagedelivery.net/IE5xUtGTS7w1n8KEfzNO9A/${product.image}/public`}
+						className="h-90 bg-slate-300"
+					/>
 					<div className="flex cursor-pointer py-3 border-t border-b items-center space-x-3">
-						<div className="w-12 h-12 rounded-full bg-slate-300" />
+						{user?.avatar ? (
+							<Image
+								width={48}
+								height={48}
+								src={`https://imagedelivery.net/IE5xUtGTS7w1n8KEfzNO9A/${product?.user?.avatar}/avatar`}
+								className="w-12 h-12 bg-slate-500 rounded-full"
+							/>
+						) : (
+							<div className="w-12 h-12 bg-slate-500 rounded-full" />
+						)}
 						<div>
 							<p className="text-sm font-medium text-gray-700">
-								{data?.product?.user?.name}
+								{product?.user?.name}
 							</p>
-							<Link href={`/users/profile/${data?.product?.user?.id}`}>
+							<Link href={`/profile`}>
 								<p className="text-xs font-medium text-gray-500">
 									View profile &rarr;
 								</p>
@@ -57,11 +89,19 @@ export default function ItemDetail() {
 						)}
 						<div className="flex items-center justify-between space-x-2">
 							<Button large text="Talk to seller" />
-							<button className="p-3 rounded-md flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-500">
+							<button
+								onClick={onFavClick}
+								className={cls(
+									"p-3 rounded-md flex items-center hover:bg-gray-100 justify-center ",
+									data?.isLiked
+										? "text-red-600 hover:text-red-600"
+										: "text-gray-400 hover:text-gray-500"
+								)}
+							>
 								<svg
 									className="h-6 w-6 "
 									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
+									fill={data?.isLiked ? "currentColor" : "none"}
 									viewBox="0 0 24 24"
 									stroke="currentColor"
 									aria-hidden="true"
@@ -94,4 +134,58 @@ export default function ItemDetail() {
 			</div>
 		</Layout>
 	);
-}
+};
+
+export const getStaticPaths: GetStaticPaths = () => {
+	return {
+		paths: [],
+		fallback: "blocking",
+	};
+};
+
+export const getStaticProps: GetStaticProps = async (ctx) => {
+	if (!ctx?.params?.id) {
+		return {
+			props: {},
+		};
+	}
+	const product = await client.product.findUnique({
+		where: {
+			id: Number(ctx.params.id),
+		},
+		include: {
+			user: {
+				select: {
+					id: true,
+					name: true,
+					avatar: true,
+				},
+			},
+		},
+	});
+	const terms = product?.name.split(" ").map((word) => ({
+		name: {
+			contains: word,
+		},
+	}));
+	const relatedProducts = await client.product.findMany({
+		where: {
+			OR: terms,
+			AND: {
+				id: {
+					not: product?.id,
+				},
+			},
+		},
+	});
+	const isLiked = false;
+	return {
+		props: {
+			product: JSON.parse(JSON.stringify(product)),
+			relatedProducts: JSON.parse(JSON.stringify(relatedProducts)),
+			isLiked,
+		},
+	};
+};
+
+export default ItemDetail;

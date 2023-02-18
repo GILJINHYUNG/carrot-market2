@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { cls } from "@libs/client/utils";
 import { useRouter } from "next/router";
+import Head from "next/head";
 
 interface LayoutProps {
 	title?: string;
 	canGoBack?: boolean;
 	hasTabBar?: boolean;
 	children: React.ReactNode;
+	seoTitle?: string;
 }
 
 export default function Layout({
@@ -14,6 +16,7 @@ export default function Layout({
 	canGoBack,
 	hasTabBar,
 	children,
+	seoTitle,
 }: LayoutProps) {
 	const router = useRouter();
 	const onClick = () => {
@@ -21,6 +24,9 @@ export default function Layout({
 	};
 	return (
 		<div>
+			<Head>
+				<title>{seoTitle} | CarrotMarket</title>
+			</Head>
 			<div className="bg-white w-full h-12 max-w-xl justify-center text-lg px-10 font-medium  fixed text-gray-800 border-b top-0  flex items-center">
 				{canGoBack ? (
 					<button onClick={onClick} className="absolute left-4">
@@ -125,11 +131,11 @@ export default function Layout({
 							<span>채팅</span>
 						</div>
 					</Link>
-					<Link href="/live">
+					<Link href="/streams">
 						<div
 							className={cls(
 								"flex flex-col items-center space-y-2 ",
-								router.pathname === "/live"
+								router.pathname === "/streams"
 									? "text-orange-500"
 									: "hover:text-gray-500 transition-colors"
 							)}
